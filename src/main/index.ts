@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
+import { startDatabase, stopDatabase } from './database';
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 
@@ -39,12 +40,23 @@ function createWindow() {
 }
 
 // App event handlers
-app.on('ready', createWindow);
+app.on('ready', async () => {
+  try {
+    await startDatabase();
+  } catch (error) {
+    console.error('Failed to start embedded Postgres:', error);
+  }
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('will-quit', async () => {
+  await stopDatabase();
 });
 
 app.on('activate', () => {
