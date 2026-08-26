@@ -55,7 +55,11 @@
     "url": "https://github.com/dasmido/nexus-pass-vault-desktop/issues"
   },
   "homepage": "https://github.com/dasmido/nexus-pass-vault-desktop#readme",
-  "keywords": ["password", "vault", "secure"],
+  "keywords": [
+    "password",
+    "vault",
+    "secure"
+  ],
   "engines": {
     "node": ">=22.12.0"
   },
@@ -67,5 +71,8 @@
     "svelte": "^5.56.10",
     "typescript": "^7.0.2",
     "vite": "^7.3.6"
+  },
+  "dependencies": {
+    "carbon-components-svelte": "^0.111.1"
   }
 }

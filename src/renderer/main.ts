@@ -1,3 +1,4 @@
+import 'carbon-components-svelte/css/g10.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 
