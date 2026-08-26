@@ -1,0 +1,71 @@
+{
+  "name": "nexus-pass-vault-desktop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "out/main/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "package": "npm run build && electron-builder",
+    "dist": "npm run package"
+  },
+  "build": {
+    "appId": "dev.dasmido.nexus-pass-vault",
+    "productName": "Nexus Pass Vault",
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dasmido/nexus-pass-vault-desktop.git"
+  },
+  "author": "Dasmido",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dasmido/nexus-pass-vault-desktop/issues"
+  },
+  "homepage": "https://github.com/dasmido/nexus-pass-vault-desktop#readme",
+  "keywords": ["password", "vault", "secure"],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "svelte": "^5.56.10",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6"
+  }
+}
