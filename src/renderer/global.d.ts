@@ -19,6 +19,7 @@ declare interface Window {
       setup: (passcode: string) => Promise<void>;
       unlock: (passcode: string) => Promise<boolean>;
       verify: (passcode: string) => Promise<boolean>;
+      changePasscode: (current: string, next: string) => Promise<void>;
       lock: () => Promise<void>;
     };
     passwords: {

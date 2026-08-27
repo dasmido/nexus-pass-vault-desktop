@@ -60,6 +60,23 @@ export async function verifyPasscode(passcode: string): Promise<boolean> {
   return matches;
 }
 
+export async function changePasscode(current: string, next: string): Promise<void> {
+  if (!(await verifyPasscode(current))) {
+    throw new Error('Current passcode is incorrect.');
+  }
+  if (typeof next !== 'string' || next.length < MIN_PASSCODE_LENGTH) {
+    throw new Error(`Passcode must be at least ${MIN_PASSCODE_LENGTH} characters.`);
+  }
+
+  const salt = randomBytes(16);
+  const hash = await derive(next, salt);
+  await getDatabaseClient().query('UPDATE app_lock SET salt = $2, hash = $3 WHERE id = $1', [
+    LOCK_ROW_ID,
+    salt.toString('hex'),
+    hash.toString('hex')
+  ]);
+}
+
 export function lock(): void {
   unlocked = false;
 }

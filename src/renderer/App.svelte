@@ -4,13 +4,17 @@
   import Moon from 'carbon-icons-svelte/lib/Moon.svelte';
   import Sun from 'carbon-icons-svelte/lib/Sun.svelte';
   import Locked from 'carbon-icons-svelte/lib/Locked.svelte';
+  import SettingsIcon from 'carbon-icons-svelte/lib/Settings.svelte';
+  import ArrowLeft from 'carbon-icons-svelte/lib/ArrowLeft.svelte';
   import Passwords from './Passwords.svelte';
+  import Settings from './Settings.svelte';
   import Lock from './Lock.svelte';
 
   let darkMode = false;
   let checkingLock = true;
   let passcodeConfigured = false;
   let unlocked = false;
+  let view: 'passwords' | 'settings' = 'passwords';
 
   function applyTheme(enabled: boolean) {
     darkMode = enabled;
@@ -28,6 +32,7 @@
   async function lockVault() {
     await window.api.auth.lock();
     unlocked = false;
+    view = 'passwords';
   }
 
   onMount(() => {
@@ -59,6 +64,11 @@
   />
 {:else}
   <Header companyName="Nexus" platformName="Pass Vault">
+    <HeaderGlobalAction
+      aria-label={view === 'settings' ? 'Back to vault' : 'Settings'}
+      icon={view === 'settings' ? ArrowLeft : SettingsIcon}
+      onclick={() => (view = view === 'settings' ? 'passwords' : 'settings')}
+    />
     <HeaderGlobalAction aria-label="Lock vault" icon={Locked} onclick={lockVault} />
     <HeaderGlobalAction
       aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -69,7 +79,11 @@
 
   <main id="main-content" class="shell-content">
     <div class="content-frame">
-      <Passwords />
+      {#if view === 'settings'}
+        <Settings />
+      {:else}
+        <Passwords />
+      {/if}
     </div>
   </main>
 {/if}

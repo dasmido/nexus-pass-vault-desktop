@@ -11,6 +11,7 @@ import {
   updatePasswordEntry
 } from './database';
 import {
+  changePasscode,
   isPasscodeConfigured,
   isUnlocked,
   lock,
@@ -51,6 +52,10 @@ ipcMain.handle('auth:status', async () => ({
 ipcMain.handle('auth:setup', (_event, passcode: string) => setupPasscode(passcode));
 ipcMain.handle('auth:unlock', (_event, passcode: string) => verifyPasscode(passcode));
 ipcMain.handle('auth:verify', (_event, passcode: string) => verifyPasscode(passcode));
+ipcMain.handle(
+  'auth:changePasscode',
+  requireUnlocked((_event, current: string, next: string) => changePasscode(current, next))
+);
 ipcMain.handle('auth:lock', () => lock());
 
 function createWindow() {

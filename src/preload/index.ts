@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('api', {
     setup: (passcode: string) => ipcRenderer.invoke('auth:setup', passcode),
     unlock: (passcode: string) => ipcRenderer.invoke('auth:unlock', passcode),
     verify: (passcode: string) => ipcRenderer.invoke('auth:verify', passcode),
+    changePasscode: (current: string, next: string) =>
+      ipcRenderer.invoke('auth:changePasscode', current, next),
     lock: () => ipcRenderer.invoke('auth:lock')
   },
   passwords: {
