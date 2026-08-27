@@ -1,10 +1,23 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, shell } from 'electron';
+import { execFile } from 'child_process';
 import path from 'path';
-import { startDatabase, stopDatabase } from './database';
+import {
+  createPasswordEntry,
+  deletePasswordEntry,
+  listPasswordEntries,
+  startDatabase,
+  stopDatabase,
+  updatePasswordEntry
+} from './database';
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 
 let mainWindow: BrowserWindow | null = null;
+
+ipcMain.handle('passwords:list', () => listPasswordEntries());
+ipcMain.handle('passwords:create', (_event, input) => createPasswordEntry(input));
+ipcMain.handle('passwords:update', (_event, id: string, input) => updatePasswordEntry(id, input));
+ipcMain.handle('passwords:delete', (_event, id: string) => deletePasswordEntry(id));
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -15,7 +28,8 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.mjs'),
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      sandbox: false
     },
     icon: isDev ? undefined : path.join(__dirname, '../../assets/icon.png')
   });
@@ -26,6 +40,15 @@ function createWindow() {
   }
 
   // Load app
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    openInBrowser(url);
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('preload-error', (_event, preloadPath, error) => {
+    console.error(`Failed to load preload script ${preloadPath}:`, error);
+  });
+
   if (isDev) {
     mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL!);
     mainWindow.webContents.openDevTools();
@@ -37,6 +60,21 @@ function createWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+}
+
+function openInBrowser(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return;
+
+    if (process.platform === 'darwin') {
+      execFile('open', ['-a', 'Google Chrome', parsedUrl.toString()]);
+    } else {
+      void shell.openExternal(parsedUrl.toString());
+    }
+  } catch (error) {
+    console.error('Failed to open external URL:', error);
+  }
 }
 
 // App event handlers
