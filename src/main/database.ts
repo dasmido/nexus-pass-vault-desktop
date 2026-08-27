@@ -84,6 +84,7 @@ export async function startDatabase(): Promise<Client> {
         throw error;
       }
     }
+    // TODO: use Pool instead of a single client for better connection management
     client = postgres.getPgClient(DATABASE_NAME);
   } else {
     client = new Client({
