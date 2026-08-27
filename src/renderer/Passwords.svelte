@@ -1,19 +1,24 @@
 <script lang="ts">
   import {
     Button,
-    DataTable
+    DataTable,
+    InlineLoading,
+    Modal,
+    OverflowMenu,
+    OverflowMenuItem,
+    Pagination,
+    TextInput
   } from 'carbon-components-svelte';
   import type { DataTableHeader } from 'carbon-components-svelte/src/DataTable/DataTable.svelte';
-  import Filter from 'carbon-icons-svelte/lib/Filter.svelte';
-  import Download from 'carbon-icons-svelte/lib/Download.svelte';
-  import DocumentPdf from 'carbon-icons-svelte/lib/DocumentPdf.svelte';
   import Add from 'carbon-icons-svelte/lib/Add.svelte';
   import Launch from 'carbon-icons-svelte/lib/Launch.svelte';
   import Copy from 'carbon-icons-svelte/lib/Copy.svelte';
   import Edit from 'carbon-icons-svelte/lib/Edit.svelte';
   import TrashCan from 'carbon-icons-svelte/lib/TrashCan.svelte';
-  import Close from 'carbon-icons-svelte/lib/Close.svelte';
+  import Locked from 'carbon-icons-svelte/lib/Locked.svelte';
   import { onMount } from 'svelte';
+
+  const unlockPin = '1234';
 
   const headers: DataTableHeader<PasswordEntry>[] = [
     { key: 'website', value: 'Website' },
@@ -22,23 +27,47 @@
     { key: 'actions', empty: true }
   ];
 
+  const defaultPageSize = 10;
   let rows: PasswordEntry[] = [];
+  let currentPage = 1;
+  let pageSize = defaultPageSize;
+  let totalItems = 0;
   let loading = true;
   let errorMessage = '';
   let editorOpen = false;
   let editingId: string | null = null;
+  let saving = false;
   let form: PasswordEntryInput = { website: '', username: '', secret: '' };
+  let revealedIds = new Set<string>();
+  const revealTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  let pinDialogOpen = false;
+  let pinDialogRowId: string | null = null;
+  let pinCode = '';
+  let pinError = '';
+  let deleteDialogOpen = false;
+  let pendingDelete: PasswordEntry | null = null;
+  let deleting = false;
 
-  async function loadEntries() {
+  async function loadEntries(page = currentPage, requestedPageSize = pageSize) {
     loading = true;
     try {
-      rows = await window.api.passwords.list();
+      const result = await window.api.passwords.list(page, requestedPageSize);
+      rows = result.entries;
+      totalItems = result.totalItems;
+      currentPage = page;
+      pageSize = requestedPageSize;
       errorMessage = '';
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unable to load passwords.';
     } finally {
       loading = false;
     }
+  }
+
+  function handlePaginationChange(event: CustomEvent<{ page?: number; pageSize?: number }>) {
+    const nextPage = event.detail.page ?? currentPage;
+    const nextPageSize = event.detail.pageSize ?? pageSize;
+    void loadEntries(nextPage, nextPageSize);
   }
 
   function openCreate() {
@@ -57,8 +86,40 @@
     editorOpen = false;
   }
 
-  function handleBackdropClick(event: MouseEvent) {
-    if (event.target === event.currentTarget) closeEditor();
+  function openPinDialog(entry: PasswordEntry) {
+    pinDialogRowId = entry.id;
+    pinCode = '';
+    pinError = '';
+    pinDialogOpen = true;
+  }
+
+  function closePinDialog() {
+    pinDialogOpen = false;
+    pinDialogRowId = null;
+    pinCode = '';
+    pinError = '';
+  }
+
+  function verifyPin() {
+    if (pinCode !== unlockPin) {
+      pinError = 'Incorrect PIN.';
+      return;
+    }
+
+    if (pinDialogRowId) {
+      const rowId = pinDialogRowId;
+      const currentTimer = revealTimers.get(rowId);
+      if (currentTimer) clearTimeout(currentTimer);
+
+      revealedIds = new Set(revealedIds).add(rowId);
+      revealTimers.set(rowId, setTimeout(() => {
+        const nextRevealedIds = new Set(revealedIds);
+        nextRevealedIds.delete(rowId);
+        revealedIds = nextRevealedIds;
+        revealTimers.delete(rowId);
+      }, 10000));
+    }
+    closePinDialog();
   }
 
   async function saveEntry() {
@@ -73,28 +134,47 @@
     }
 
     try {
+      saving = true;
       if (editingId) {
         const updated = await window.api.passwords.update(editingId, input);
-        rows = rows.map((entry) => (entry.id === updated.id ? updated : entry));
+        await loadEntries();
       } else {
-        const created = await window.api.passwords.create(input);
-        rows = [...rows, created].sort((a, b) => a.website.localeCompare(b.website));
+        await window.api.passwords.create(input);
+        await loadEntries(1, pageSize);
       }
       errorMessage = '';
       closeEditor();
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unable to save password.';
+    } finally {
+      saving = false;
     }
   }
 
-  async function removeEntry(entry: PasswordEntry) {
-    if (!window.confirm(`Delete the password for ${entry.website}?`)) return;
+  function requestRemove(entry: PasswordEntry) {
+    pendingDelete = entry;
+    deleteDialogOpen = true;
+  }
+
+  function closeDeleteDialog() {
+    if (deleting) return;
+    deleteDialogOpen = false;
+    pendingDelete = null;
+  }
+
+  async function removeEntry() {
+    if (!pendingDelete) return;
+    const entry = pendingDelete;
     try {
+      deleting = true;
       await window.api.passwords.delete(entry.id);
-      rows = rows.filter((item) => item.id !== entry.id);
+      await loadEntries(currentPage, pageSize);
       errorMessage = '';
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : 'Unable to delete password.';
+    } finally {
+      deleting = false;
+      closeDeleteDialog();
     }
   }
 
@@ -116,16 +196,15 @@
       <p class="page-description">Manage your saved credentials and keep access close at hand.</p>
     </div>
     <Button kind="primary" icon={Add} iconDescription="Add password" size="lg" onclick={openCreate}>
-      Add password
     </Button>
   </div>
 
   <div class="overview-strip" aria-label="Vault overview">
     <div class="overview-item">
       <span class="overview-label">Saved credentials</span>
-      <strong>{rows.length}</strong>
+      <strong>{totalItems}</strong>
     </div>
-    <div class="overview-item">
+    <div class="overview-item"> 
       <span class="overview-label">Vault status</span>
       <strong class="status"><span></span>Protected</strong>
     </div>
@@ -138,18 +217,7 @@
   <div class="table-toolbar">
     <div>
       <h2>All passwords</h2>
-      <span>{rows.length} entries</span>
-    </div>
-    <div class="passwords-actions">
-      <button class="toolbar-button" type="button" aria-label="Filter passwords" title="Filter passwords">
-        <Filter size={16} />
-      </button>
-      <button class="toolbar-button" type="button" aria-label="Export passwords to Excel" title="Export passwords to Excel">
-        <Download size={16} />
-      </button>
-      <button class="toolbar-button" type="button" aria-label="Export passwords to PDF" title="Export passwords to PDF">
-        <DocumentPdf size={16} />
-      </button>
+      <span>{totalItems} entries</span>
     </div>
   </div>
 
@@ -158,7 +226,9 @@
   {/if}
 
   {#if loading}
-    <div class="loading-message">Loading passwords...</div>
+    <div class="loading-message" role="status" aria-live="polite">
+      <InlineLoading status="active" description="Loading passwords" />
+    </div>
   {:else}
     <DataTable {headers} {rows} size="tall">
     <svelte:fragment slot="cell" let:row let:cell>
@@ -190,57 +260,119 @@
         </div>
       {:else if cell.key === 'secret'}
         <div class="cell-with-action">
-          <span class="secret">{cell.value ?? row.secret}</span>
-          <button
-            class="icon-button"
-            type="button"
-            aria-label="Copy secret"
-            onclick={() => copy(row.secret)}
-          >
-            <Copy size={16} />
-          </button>
+          {#if revealedIds.has(row.id)}
+            <span class="secret">{row.secret}</span>
+            <button
+              class="icon-button"
+              type="button"
+              aria-label="Copy password"
+              title="Copy password"
+              onclick={() => copy(row.secret)}
+            >
+              <Copy size={16} />
+            </button>
+          {:else}
+            <span class="secret">********</span>
+            <button
+              class="icon-button lock-button"
+              type="button"
+              aria-label={`Unlock password for ${row.website}`}
+              title="Unlock password"
+              onclick={() => openPinDialog(row)}
+            >
+              <Locked size={16} />
+            </button>
+          {/if}
         </div>
       {:else if cell.key === 'actions'}
-        <div class="row-actions">
-          <button class="icon-button" type="button" aria-label={`Edit ${row.website}`} onclick={() => openEdit(row)}>
-            <Edit size={16} />
-          </button>
-          <button class="icon-button danger" type="button" aria-label={`Delete ${row.website}`} onclick={() => removeEntry(row)}>
-            <TrashCan size={16} />
-          </button>
-        </div>
+        <OverflowMenu flipped iconDescription={`Actions for ${row.website}`}>
+          <OverflowMenuItem text="Edit" icon={Edit} on:click={() => openEdit(row)} />
+          <OverflowMenuItem text="Delete" icon={TrashCan} danger on:click={() => requestRemove(row)} />
+        </OverflowMenu>
       {/if}
     </svelte:fragment>
     </DataTable>
+    <Pagination
+      page={currentPage}
+      pageSize={pageSize}
+      pageSizes={[5, 10, 25, 50]}
+      totalItems={totalItems}
+      dynamicPageSizes
+      on:change={handlePaginationChange}
+    />
   {/if}
 
   {#if editorOpen}
-    <div class="editor-backdrop" role="presentation" onclick={handleBackdropClick}>
-      <div class="editor" role="dialog" aria-modal="true" aria-labelledby="editor-title">
-        <form onsubmit={(event) => { event.preventDefault(); saveEntry(); }}>
-          <div class="editor-header">
-            <h2 id="editor-title">{editingId ? 'Edit password' : 'Add password'}</h2>
-            <button class="icon-button" type="button" aria-label="Close editor" onclick={closeEditor}><Close size={20} /></button>
-          </div>
-          <label>
-            Website
-            <input bind:value={form.website} placeholder="example.com" autocomplete="url" />
-          </label>
-          <label>
-            Username
-            <input bind:value={form.username} autocomplete="username" />
-          </label>
-          <label>
-            Secret
-            <input bind:value={form.secret} type="password" autocomplete="new-password" />
-          </label>
-          <div class="editor-actions">
-            <Button kind="secondary" type="button" onclick={closeEditor}>Cancel</Button>
-            <Button kind="primary" type="submit">Save password</Button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Modal
+      open
+      size="sm"
+      hasForm
+      modalHeading={editingId ? 'Edit password' : 'Add password'}
+      modalLabel="Vault credentials"
+      iconDescription="Close password editor"
+      primaryButtonText="Save password"
+      secondaryButtonText="Cancel"
+      primaryButtonLoading={saving}
+      primaryButtonLoadingDescription="Saving password"
+      on:close={closeEditor}
+      on:click:button--primary={saveEntry}
+      on:click:button--secondary={closeEditor}
+    >
+      <TextInput bind:value={form.website} labelText="Website" placeholder="example.com" name="website" required />
+      <TextInput bind:value={form.username} labelText="Username" name="username" required />
+      <TextInput bind:value={form.secret} type="password" labelText="Secret" name="secret" required />
+    </Modal>
+  {/if}
+
+  {#if pinDialogOpen}
+    <Modal
+      open
+      size="sm"
+      modalHeading="Unlock password"
+      modalLabel="Protected credential"
+      iconDescription="Close PIN dialog"
+      primaryButtonText="OK"
+      secondaryButtonText="Cancel"
+      primaryButtonDisabled={!pinCode}
+      on:close={closePinDialog}
+      on:click:button--primary={verifyPin}
+      on:click:button--secondary={closePinDialog}
+    >
+      <p class="pin-help">Enter your PIN to reveal this password.</p>
+      <TextInput
+        bind:value={pinCode}
+        type="password"
+        labelText="PIN"
+        name="pin"
+        inputmode="numeric"
+        autocomplete="off"
+        invalid={Boolean(pinError)}
+        invalidText={pinError}
+      />
+    </Modal>
+  {/if}
+
+  {#if deleteDialogOpen}
+    <Modal
+      open
+      size="sm"
+      danger
+      modalHeading="Delete password"
+      modalLabel="Confirm deletion"
+      iconDescription="Close delete confirmation"
+      primaryButtonText="Delete"
+      secondaryButtonText="Cancel"
+      primaryButtonLoading={deleting}
+      primaryButtonLoadingDescription="Deleting password"
+      on:close={closeDeleteDialog}
+      on:click:button--primary={removeEntry}
+      on:click:button--secondary={closeDeleteDialog}
+    >
+      <p class="delete-message">
+        Are you sure you want to remove the password for <strong>{pendingDelete?.website}</strong>?
+        This action cannot be undone.
+      </p>
+    </Modal>
   {/if}
 </div>
 
@@ -346,31 +478,6 @@
     font-size: 0.75rem;
   }
 
-  .passwords-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-
-  .toolbar-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 3rem;
-    height: 3rem;
-    border: 0;
-    color: var(--page-text, #161616);
-    background: transparent;
-    cursor: pointer;
-  }
-
-  .toolbar-button:hover,
-  .toolbar-button:focus-visible {
-    background: var(--page-border, #c6c6c6);
-    outline: 2px solid #0f62fe;
-    outline-offset: -2px;
-  }
-
   .cell-website,
   .cell-with-action {
     display: flex;
@@ -399,13 +506,25 @@
     letter-spacing: 0.1em;
   }
 
-  .row-actions {
-    display: flex;
-    gap: 0.75rem;
+  .lock-button {
+    color: #0f62fe;
   }
 
-  .icon-button.danger {
-    color: #da1e28;
+  .pin-help {
+    margin: 0 0 1rem;
+    color: var(--page-muted, #525252);
+    font-size: 0.875rem;
+  }
+
+  .delete-message {
+    margin: 0;
+    color: var(--page-muted, #525252);
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .delete-message strong {
+    color: var(--page-text, #161616);
   }
 
   .loading-message,
@@ -415,72 +534,15 @@
     color: var(--page-text, #161616);
   }
 
+  .loading-message {
+    display: flex;
+    min-height: 3rem;
+    align-items: center;
+  }
+
   .error-message {
     margin-bottom: 1rem;
     border-left: 3px solid #da1e28;
-  }
-
-  .editor-backdrop {
-    position: fixed;
-    z-index: 1000;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    padding: 1rem;
-    background: rgb(0 0 0 / 55%);
-  }
-
-  .editor {
-    width: min(30rem, 100%);
-    padding: 1.5rem;
-    background: var(--page-background, #f4f4f4);
-    color: var(--page-text, #161616);
-    box-shadow: 0 1rem 2rem rgb(0 0 0 / 25%);
-  }
-
-  .editor-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 1.5rem;
-  }
-
-  .editor-header h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 400;
-  }
-
-  .editor label {
-    display: block;
-    margin-bottom: 1rem;
-    color: var(--page-muted, #525252);
-    font-size: 0.75rem;
-  }
-
-  .editor input {
-    display: block;
-    box-sizing: border-box;
-    width: 100%;
-    margin-top: 0.5rem;
-    padding: 0.75rem;
-    border: 0;
-    border-bottom: 1px solid var(--page-border, #c6c6c6);
-    background: var(--page-border, #e0e0e0);
-    color: var(--page-text, #161616);
-    font: inherit;
-  }
-
-  .editor input:focus {
-    outline: 2px solid #0f62fe;
-    outline-offset: -2px;
-  }
-
-  .editor-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    margin-top: 2rem;
   }
 
   @media (max-width: 672px) {

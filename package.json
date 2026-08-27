@@ -76,6 +76,7 @@
   "dependencies": {
     "carbon-components-svelte": "^0.111.1",
     "carbon-icons-svelte": "^13.14.0",
+    "carbon-pictograms-svelte": "^13.19.0",
     "embedded-postgres": "^18.4.0-beta.17",
     "pg": "^8.23.0"
   }

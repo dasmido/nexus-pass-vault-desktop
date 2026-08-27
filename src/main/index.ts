@@ -14,7 +14,9 @@ const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.handle('passwords:list', () => listPasswordEntries());
+ipcMain.handle('passwords:list', (_event, page?: number, pageSize?: number) =>
+  listPasswordEntries(page, pageSize)
+);
 ipcMain.handle('passwords:create', (_event, input) => createPasswordEntry(input));
 ipcMain.handle('passwords:update', (_event, id: string, input) => updatePasswordEntry(id, input));
 ipcMain.handle('passwords:delete', (_event, id: string) => deletePasswordEntry(id));

@@ -7,10 +7,15 @@ interface PasswordEntry {
 
 type PasswordEntryInput = Omit<PasswordEntry, 'id'>;
 
+interface PasswordEntryPage {
+  entries: PasswordEntry[];
+  totalItems: number;
+}
+
 declare interface Window {
   api: {
     passwords: {
-      list: () => Promise<PasswordEntry[]>;
+      list: (page?: number, pageSize?: number) => Promise<PasswordEntryPage>;
       create: (input: PasswordEntryInput) => Promise<PasswordEntry>;
       update: (id: string, input: PasswordEntryInput) => Promise<PasswordEntry>;
       delete: (id: string) => Promise<void>;

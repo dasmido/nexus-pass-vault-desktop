@@ -9,7 +9,7 @@ type PasswordEntryInput = {
 contextBridge.exposeInMainWorld('api', {
   nodeVersion: process.versions.node,
   passwords: {
-    list: () => ipcRenderer.invoke('passwords:list'),
+    list: (page?: number, pageSize?: number) => ipcRenderer.invoke('passwords:list', page, pageSize),
     create: (input: PasswordEntryInput) => ipcRenderer.invoke('passwords:create', input),
     update: (id: string, input: PasswordEntryInput) =>
       ipcRenderer.invoke('passwords:update', id, input),

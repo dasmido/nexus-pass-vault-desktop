@@ -17,6 +17,11 @@ export interface PasswordEntry {
 
 export type PasswordEntryInput = Omit<PasswordEntry, 'id'>;
 
+export interface PasswordEntryPage {
+  entries: PasswordEntry[];
+  totalItems: number;
+}
+
 let postgres: EmbeddedPostgres | null = null;
 let client: Client | null = null;
 let ownsPostgresProcess = false;
@@ -111,11 +116,25 @@ export function getDatabaseClient(): Client {
   return client;
 }
 
-export async function listPasswordEntries(): Promise<PasswordEntry[]> {
-  const result = await getDatabaseClient().query<PasswordEntry>(
-    'SELECT id, website, username, secret FROM password_entries ORDER BY website ASC, id ASC'
-  );
-  return result.rows;
+export async function listPasswordEntries(page = 1, pageSize = 10): Promise<PasswordEntryPage> {
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+  const offset = (safePage - 1) * safePageSize;
+  const database = getDatabaseClient();
+  const [entries, count] = await Promise.all([
+    database.query<PasswordEntry>(
+      `SELECT id, website, username, secret
+       FROM password_entries
+       ORDER BY website ASC, id ASC
+       LIMIT $1 OFFSET $2`,
+      [safePageSize, offset]
+    ),
+    database.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM password_entries')
+  ]);
+  return {
+    entries: entries.rows,
+    totalItems: Number(count.rows[0]?.count ?? 0)
+  };
 }
 
 export async function createPasswordEntry(input: PasswordEntryInput): Promise<PasswordEntry> {
