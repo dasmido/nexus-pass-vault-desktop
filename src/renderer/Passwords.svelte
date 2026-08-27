@@ -7,6 +7,7 @@
     OverflowMenu,
     OverflowMenuItem,
     Pagination,
+    Search,
     TextInput
   } from 'carbon-components-svelte';
   import type { DataTableHeader } from 'carbon-components-svelte/src/DataTable/DataTable.svelte';
@@ -52,6 +53,7 @@
   let deleting = false;
   let secretVisible = false;
   let lastActivity: string | null = null;
+  let searchQuery = '';
 
   const passwordCharset =
     'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+';
@@ -88,6 +90,11 @@
   }
 
   $: passwordStrength = scorePasswordStrength(form.secret);
+  $: filteredRows = rows.filter((row) => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return row.website.toLowerCase().includes(query) || row.username.toLowerCase().includes(query);
+  });
 
   async function loadEntries(page = currentPage, requestedPageSize = pageSize) {
     loading = true;
@@ -265,8 +272,12 @@
       <h1 class="eyebrow">Vault workspace</h1>
       <p class="page-description">Manage your saved credentials and keep access close at hand.</p>
     </div>
-    <Button kind="primary" icon={Add} iconDescription="Add password" size="lg" onclick={openCreate}>
-    </Button>
+    <Search
+      bind:value={searchQuery}
+      placeholder="Search by website or username"
+      labelText="Search passwords"
+      size="lg"
+    />
   </div>
 
   <div class="overview-strip" aria-label="Vault overview">
@@ -289,6 +300,8 @@
       <h2>All passwords</h2>
       <span>{totalItems} entries</span>
     </div>
+    <Button kind="primary" icon={Add} iconDescription="Add password" size="lg" onclick={openCreate}>
+    </Button>
   </div>
 
   {#if errorMessage}
@@ -300,7 +313,7 @@
       <InlineLoading status="active" description="Loading passwords" />
     </div>
   {:else}
-    <DataTable {headers} {rows} size="tall">
+    <DataTable {headers} rows={filteredRows} size="tall">
     <svelte:fragment slot="cell" let:row let:cell>
       {#if cell.key === 'website'}
         <div class="cell-website">
@@ -500,6 +513,11 @@
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 2.5rem;
+  }
+
+  .page-heading :global(.bx--search) {
+    max-width: 20rem;
+    width: 100%;
   }
 
   h1 {
