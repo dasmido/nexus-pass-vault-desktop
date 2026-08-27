@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('api', {
     create: (input: PasswordEntryInput) => ipcRenderer.invoke('passwords:create', input),
     update: (id: string, input: PasswordEntryInput) =>
       ipcRenderer.invoke('passwords:update', id, input),
-    delete: (id: string) => ipcRenderer.invoke('passwords:delete', id)
+    delete: (id: string) => ipcRenderer.invoke('passwords:delete', id),
+    lastActivity: () => ipcRenderer.invoke('passwords:lastActivity')
   }
 });

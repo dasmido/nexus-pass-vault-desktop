@@ -4,6 +4,7 @@ import path from 'path';
 import {
   createPasswordEntry,
   deletePasswordEntry,
+  getLastActivity,
   listPasswordEntries,
   startDatabase,
   stopDatabase,
@@ -20,6 +21,7 @@ ipcMain.handle('passwords:list', (_event, page?: number, pageSize?: number) =>
 ipcMain.handle('passwords:create', (_event, input) => createPasswordEntry(input));
 ipcMain.handle('passwords:update', (_event, id: string, input) => updatePasswordEntry(id, input));
 ipcMain.handle('passwords:delete', (_event, id: string) => deletePasswordEntry(id));
+ipcMain.handle('passwords:lastActivity', () => getLastActivity());
 
 function createWindow() {
   mainWindow = new BrowserWindow({

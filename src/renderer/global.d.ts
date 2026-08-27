@@ -19,6 +19,7 @@ declare interface Window {
       create: (input: PasswordEntryInput) => Promise<PasswordEntry>;
       update: (id: string, input: PasswordEntryInput) => Promise<PasswordEntry>;
       delete: (id: string) => Promise<void>;
+      lastActivity: () => Promise<string | null>;
     };
   };
 }

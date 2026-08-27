@@ -166,6 +166,13 @@ export async function deletePasswordEntry(id: string): Promise<void> {
   await getDatabaseClient().query('DELETE FROM password_entries WHERE id = $1', [id]);
 }
 
+export async function getLastActivity(): Promise<string | null> {
+  const result = await getDatabaseClient().query<{ last_activity: string | null }>(
+    'SELECT MAX(updated_at)::text AS last_activity FROM password_entries'
+  );
+  return result.rows[0]?.last_activity ?? null;
+}
+
 export async function stopDatabase(): Promise<void> {
   await client?.end();
   client = null;
