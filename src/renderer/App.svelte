@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Header, HeaderGlobalAction, Loading } from 'carbon-components-svelte';
+  import { Header, HeaderGlobalAction, HeaderUtilities, Loading } from 'carbon-components-svelte';
   import Moon from 'carbon-icons-svelte/lib/Moon.svelte';
   import Sun from 'carbon-icons-svelte/lib/Sun.svelte';
   import Locked from 'carbon-icons-svelte/lib/Locked.svelte';
@@ -64,17 +64,19 @@
   />
 {:else}
   <Header companyName="Nexus" platformName="Pass Vault">
-    <HeaderGlobalAction
-      aria-label={view === 'settings' ? 'Back to vault' : 'Settings'}
-      icon={view === 'settings' ? ArrowLeft : SettingsIcon}
-      onclick={() => (view = view === 'settings' ? 'passwords' : 'settings')}
-    />
-    <HeaderGlobalAction aria-label="Lock vault" icon={Locked} onclick={lockVault} />
-    <HeaderGlobalAction
-      aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-      icon={darkMode ? Sun : Moon}
-      onclick={toggleTheme}
-    />
+    <HeaderUtilities>
+      <HeaderGlobalAction
+        aria-label={view === 'settings' ? 'Back to vault' : 'Settings'}
+        icon={view === 'settings' ? ArrowLeft : SettingsIcon}
+        onclick={() => (view = view === 'settings' ? 'passwords' : 'settings')}
+      />
+      <HeaderGlobalAction aria-label="Lock vault" icon={Locked} onclick={lockVault} />
+      <HeaderGlobalAction
+        aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        icon={darkMode ? Sun : Moon}
+        onclick={toggleTheme}
+      />
+    </HeaderUtilities>
   </Header>
 
   <main id="main-content" class="shell-content">
