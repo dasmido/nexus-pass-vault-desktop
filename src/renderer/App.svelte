@@ -1,11 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Header, HeaderGlobalAction } from 'carbon-components-svelte';
+  import { Header, HeaderGlobalAction, Loading } from 'carbon-components-svelte';
   import Moon from 'carbon-icons-svelte/lib/Moon.svelte';
   import Sun from 'carbon-icons-svelte/lib/Sun.svelte';
+  import Locked from 'carbon-icons-svelte/lib/Locked.svelte';
   import Passwords from './Passwords.svelte';
+  import Lock from './Lock.svelte';
 
   let darkMode = false;
+  let checkingLock = true;
+  let passcodeConfigured = false;
+  let unlocked = false;
 
   function applyTheme(enabled: boolean) {
     darkMode = enabled;
@@ -20,26 +25,54 @@
     applyTheme(!darkMode);
   }
 
+  async function lockVault() {
+    await window.api.auth.lock();
+    unlocked = false;
+  }
+
   onMount(() => {
     const savedTheme = localStorage.getItem('nexus-theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     applyTheme(savedTheme ? savedTheme === 'dark' : systemPrefersDark);
+
+    void (async () => {
+      try {
+        const status = await window.api.auth.status();
+        passcodeConfigured = status.configured;
+        unlocked = status.unlocked;
+      } finally {
+        checkingLock = false;
+      }
+    })();
   });
 </script>
 
-<Header companyName="Nexus" platformName="Pass Vault">
-  <HeaderGlobalAction
-    aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-    icon={darkMode ? Sun : Moon}
-    onclick={toggleTheme}
+{#if checkingLock}
+  <Loading description="Loading vault" withOverlay={false} />
+{:else if !unlocked}
+  <Lock
+    mode={passcodeConfigured ? 'unlock' : 'setup'}
+    onunlocked={() => {
+      passcodeConfigured = true;
+      unlocked = true;
+    }}
   />
-</Header>
+{:else}
+  <Header companyName="Nexus" platformName="Pass Vault">
+    <HeaderGlobalAction aria-label="Lock vault" icon={Locked} onclick={lockVault} />
+    <HeaderGlobalAction
+      aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+      icon={darkMode ? Sun : Moon}
+      onclick={toggleTheme}
+    />
+  </Header>
 
-<main id="main-content" class="shell-content">
-  <div class="content-frame">
-    <Passwords />
-  </div>
-</main>
+  <main id="main-content" class="shell-content">
+    <div class="content-frame">
+      <Passwords />
+    </div>
+  </main>
+{/if}
 
 <style>
   :global(body) {

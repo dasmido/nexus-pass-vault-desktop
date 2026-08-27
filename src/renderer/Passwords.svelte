@@ -22,8 +22,6 @@
   import Renew from 'carbon-icons-svelte/lib/Renew.svelte';
   import { onMount } from 'svelte';
 
-  const unlockPin = '1234';
-
   const headers: DataTableHeader<PasswordEntry>[] = [
     { key: 'website', value: 'Website' },
     { key: 'username', value: 'Username' },
@@ -172,9 +170,10 @@
     pinError = '';
   }
 
-  function verifyPin() {
-    if (pinCode !== unlockPin) {
-      pinError = 'Incorrect PIN.';
+  async function verifyPin() {
+    const accepted = await window.api.auth.verify(pinCode);
+    if (!accepted) {
+      pinError = 'Incorrect passcode.';
       return;
     }
 
@@ -455,7 +454,7 @@
       size="sm"
       modalHeading="Unlock password"
       modalLabel="Protected credential"
-      iconDescription="Close PIN dialog"
+      iconDescription="Close passcode dialog"
       primaryButtonText="OK"
       secondaryButtonText="Cancel"
       primaryButtonDisabled={!pinCode}
@@ -463,13 +462,12 @@
       on:click:button--primary={verifyPin}
       on:click:button--secondary={closePinDialog}
     >
-      <p class="pin-help">Enter your PIN to reveal this password.</p>
+      <p class="pin-help">Enter your passcode to reveal this password.</p>
       <TextInput
         bind:value={pinCode}
         type="password"
-        labelText="PIN"
+        labelText="Passcode"
         name="pin"
-        inputmode="numeric"
         autocomplete="off"
         invalid={Boolean(pinError)}
         invalidText={pinError}

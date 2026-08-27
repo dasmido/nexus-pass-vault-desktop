@@ -107,6 +107,14 @@ export async function startDatabase(): Promise<Client> {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS app_lock (
+      id INTEGER PRIMARY KEY,
+      salt TEXT NOT NULL,
+      hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
   return client;
 }
 

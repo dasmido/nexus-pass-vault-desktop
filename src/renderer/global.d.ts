@@ -14,6 +14,13 @@ interface PasswordEntryPage {
 
 declare interface Window {
   api: {
+    auth: {
+      status: () => Promise<{ configured: boolean; unlocked: boolean }>;
+      setup: (passcode: string) => Promise<void>;
+      unlock: (passcode: string) => Promise<boolean>;
+      verify: (passcode: string) => Promise<boolean>;
+      lock: () => Promise<void>;
+    };
     passwords: {
       list: (page?: number, pageSize?: number) => Promise<PasswordEntryPage>;
       create: (input: PasswordEntryInput) => Promise<PasswordEntry>;

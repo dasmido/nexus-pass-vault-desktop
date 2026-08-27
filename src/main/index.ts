@@ -10,18 +10,48 @@ import {
   stopDatabase,
   updatePasswordEntry
 } from './database';
+import {
+  isPasscodeConfigured,
+  isUnlocked,
+  lock,
+  requireUnlocked,
+  setupPasscode,
+  verifyPasscode
+} from './auth';
 
 const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.handle('passwords:list', (_event, page?: number, pageSize?: number) =>
-  listPasswordEntries(page, pageSize)
+ipcMain.handle(
+  'passwords:list',
+  requireUnlocked((_event, page?: number, pageSize?: number) => listPasswordEntries(page, pageSize))
 );
-ipcMain.handle('passwords:create', (_event, input) => createPasswordEntry(input));
-ipcMain.handle('passwords:update', (_event, id: string, input) => updatePasswordEntry(id, input));
-ipcMain.handle('passwords:delete', (_event, id: string) => deletePasswordEntry(id));
-ipcMain.handle('passwords:lastActivity', () => getLastActivity());
+ipcMain.handle(
+  'passwords:create',
+  requireUnlocked((_event, input) => createPasswordEntry(input))
+);
+ipcMain.handle(
+  'passwords:update',
+  requireUnlocked((_event, id: string, input) => updatePasswordEntry(id, input))
+);
+ipcMain.handle(
+  'passwords:delete',
+  requireUnlocked((_event, id: string) => deletePasswordEntry(id))
+);
+ipcMain.handle(
+  'passwords:lastActivity',
+  requireUnlocked(() => getLastActivity())
+);
+
+ipcMain.handle('auth:status', async () => ({
+  configured: await isPasscodeConfigured(),
+  unlocked: isUnlocked()
+}));
+ipcMain.handle('auth:setup', (_event, passcode: string) => setupPasscode(passcode));
+ipcMain.handle('auth:unlock', (_event, passcode: string) => verifyPasscode(passcode));
+ipcMain.handle('auth:verify', (_event, passcode: string) => verifyPasscode(passcode));
+ipcMain.handle('auth:lock', () => lock());
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -63,6 +93,7 @@ function createWindow() {
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null;
+    lock();
   });
 }
 
