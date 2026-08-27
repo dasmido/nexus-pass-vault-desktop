@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Menu, ipcMain, shell, dialog } from 'electron';
 import { execFile } from 'child_process';
 import path from 'path';
 import {
@@ -87,6 +87,10 @@ app.on('ready', async () => {
     await startDatabase();
   } catch (error) {
     console.error('Failed to start embedded Postgres:', error);
+    dialog.showErrorBox(
+      'Database failed to start',
+      error instanceof Error ? error.message : String(error)
+    );
   }
   createWindow();
 });
