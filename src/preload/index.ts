@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('api', {
     update: (id: string, input: PasswordEntryInput) =>
       ipcRenderer.invoke('passwords:update', id, input),
     delete: (id: string) => ipcRenderer.invoke('passwords:delete', id),
-    lastActivity: () => ipcRenderer.invoke('passwords:lastActivity')
+    lastActivity: () => ipcRenderer.invoke('passwords:lastActivity'),
+    exportCsv: () => ipcRenderer.invoke('passwords:exportCsv'),
+    importCsv: () => ipcRenderer.invoke('passwords:importCsv')
   }
 });

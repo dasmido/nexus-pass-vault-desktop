@@ -175,6 +175,37 @@ export async function deletePasswordEntry(id: string): Promise<void> {
   await getDatabaseClient().query('DELETE FROM password_entries WHERE id = $1', [id]);
 }
 
+export async function getAllPasswordEntries(): Promise<PasswordEntry[]> {
+  const result = await getDatabaseClient().query<PasswordEntry>(
+    `SELECT id, website, username, secret
+     FROM password_entries
+     ORDER BY website ASC, id ASC`
+  );
+  return result.rows;
+}
+
+export async function bulkInsertPasswordEntries(entries: PasswordEntryInput[]): Promise<number> {
+  const database = getDatabaseClient();
+  let inserted = 0;
+  await database.query('BEGIN');
+  try {
+    // Importing a CSV replaces the vault contents rather than merging with it.
+    await database.query('DELETE FROM password_entries');
+    for (const entry of entries) {
+      await database.query(
+        `INSERT INTO password_entries (id, website, username, secret) VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), entry.website, entry.username, entry.secret]
+      );
+      inserted++;
+    }
+    await database.query('COMMIT');
+  } catch (error) {
+    await database.query('ROLLBACK');
+    throw error;
+  }
+  return inserted;
+}
+
 export async function getLastActivity(): Promise<string | null> {
   const result = await getDatabaseClient().query<{ last_activity: string | null }>(
     'SELECT MAX(updated_at)::text AS last_activity FROM password_entries'

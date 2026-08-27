@@ -1,15 +1,19 @@
 import { app, BrowserWindow, Menu, ipcMain, shell, dialog } from 'electron';
 import { execFile } from 'child_process';
+import { readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import {
+  bulkInsertPasswordEntries,
   createPasswordEntry,
   deletePasswordEntry,
+  getAllPasswordEntries,
   getLastActivity,
   listPasswordEntries,
   startDatabase,
   stopDatabase,
   updatePasswordEntry
 } from './database';
+import { parseCsvPasswordEntries, toCsvPasswordEntries } from './csv';
 import {
   changePasscode,
   isPasscodeConfigured,
@@ -43,6 +47,52 @@ ipcMain.handle(
 ipcMain.handle(
   'passwords:lastActivity',
   requireUnlocked(() => getLastActivity())
+);
+ipcMain.handle(
+  'passwords:exportCsv',
+  requireUnlocked(async () => {
+    if (!mainWindow) return { canceled: true };
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Passwords to CSV',
+      defaultPath: 'nexus-pass-vault-export.csv',
+      filters: [{ name: 'CSV', extensions: ['csv'] }]
+    });
+    if (canceled || !filePath) return { canceled: true };
+
+    const entries = await getAllPasswordEntries();
+    await writeFile(filePath, toCsvPasswordEntries(entries), 'utf8');
+    return { canceled: false, filePath, count: entries.length };
+  })
+);
+ipcMain.handle(
+  'passwords:importCsv',
+  requireUnlocked(async () => {
+    if (!mainWindow) return { canceled: true };
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Passwords from CSV',
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+      properties: ['openFile']
+    });
+    if (canceled || !filePaths[0]) return { canceled: true };
+
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      // NOTE: avoid the word "import" directly before a closing quote here -
+      // electron-vite's CJS-shim regex misparses it as an ESM import statement.
+      buttons: ['Cancel', 'Replace and continue'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Replace existing passwords?',
+      message: 'Importing this CSV file will remove all existing passwords in your vault.',
+      detail: 'This cannot be undone. Make sure you have exported a backup if you need one.'
+    });
+    if (response !== 1) return { canceled: true };
+
+    const content = await readFile(filePaths[0], 'utf8');
+    const entries = parseCsvPasswordEntries(content);
+    const imported = await bulkInsertPasswordEntries(entries);
+    return { canceled: false, imported, total: entries.length };
+  })
 );
 
 ipcMain.handle('auth:status', async () => ({

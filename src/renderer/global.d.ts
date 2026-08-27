@@ -12,6 +12,18 @@ interface PasswordEntryPage {
   totalItems: number;
 }
 
+interface CsvExportResult {
+  canceled: boolean;
+  filePath?: string;
+  count?: number;
+}
+
+interface CsvImportResult {
+  canceled: boolean;
+  imported?: number;
+  total?: number;
+}
+
 declare interface Window {
   api: {
     auth: {
@@ -28,6 +40,8 @@ declare interface Window {
       update: (id: string, input: PasswordEntryInput) => Promise<PasswordEntry>;
       delete: (id: string) => Promise<void>;
       lastActivity: () => Promise<string | null>;
+      exportCsv: () => Promise<CsvExportResult>;
+      importCsv: () => Promise<CsvImportResult>;
     };
   };
 }
