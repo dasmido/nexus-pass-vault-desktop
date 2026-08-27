@@ -8,7 +8,8 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "package": "npm run build && electron-builder",
-    "dist": "npm run package"
+    "dist": "npm run package",
+    "postinstall": "patch-package"
   },
   "build": {
     "appId": "dev.dasmido.nexus-pass-vault",
@@ -73,6 +74,7 @@
     "electron": "^44.0.0",
     "electron-builder": "^26.15.7",
     "electron-vite": "^5.0.0",
+    "patch-package": "^8.0.1",
     "svelte": "^5.56.10",
     "typescript": "^7.0.2",
     "vite": "^7.3.6"
